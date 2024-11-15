@@ -12,7 +12,8 @@ end
 
 local packer_bootstrap = ensure_packer()
 
-vim.cmd [[autocmd BufWritePost init.lua source <afile> | PackerCompile]]
+-- Remove 'source <afile>' to prevent errors on save
+vim.cmd [[autocmd BufWritePost init.lua PackerCompile]]
 
 require('packer').startup(function(use)
   use 'wbthomason/packer.nvim'  -- Packer can manage itself
@@ -61,12 +62,22 @@ require('packer').startup(function(use)
 end)
 
 -- General Neovim settings
-vim.o.number = true            -- Enable line numbers
-vim.o.relativenumber = true     -- Enable relative line numbers
-vim.o.clipboard = 'unnamedplus' -- Use system clipboard
+vim.o.number = true              -- Enable line numbers
+vim.o.relativenumber = true      -- Enable relative line numbers
+vim.o.clipboard = 'unnamedplus'  -- Use system clipboard
 
--- Set the leader key to space
-vim.g.mapleader = ' '
+-- Set the leader key to comma (',')
+vim.g.mapleader = ','
+
+-- Key mappings for copy and paste (uses system clipboard)
+-- Copy in visual mode
+vim.api.nvim_set_keymap('v', '<leader>c', '"+y', { noremap = true, silent = true })
+-- Copy current line in normal mode
+vim.api.nvim_set_keymap('n', '<leader>c', '"+yy', { noremap = true, silent = true })
+-- Paste in normal mode
+vim.api.nvim_set_keymap('n', '<leader>v', '"+p', { noremap = true, silent = true })
+-- Paste in visual mode
+vim.api.nvim_set_keymap('v', '<leader>v', '"+p', { noremap = true, silent = true })
 
 -- Set the colorscheme to tokyonight
 vim.cmd[[colorscheme tokyonight]]
@@ -77,20 +88,23 @@ vim.o.guifont = 'FiraCode Nerd Font:h17'  -- Replace with your desired font and 
 -- Function to toggle between relative and absolute line numbers
 vim.api.nvim_set_keymap('n', '<leader>ln', ':set relativenumber!<CR>', { noremap = true, silent = true })
 
--- Key mapping for copy-paste (uses system clipboard)
-vim.api.nvim_set_keymap('v', '<leader>y', '"+y', { noremap = true, silent = true }) -- Copy to system clipboard
-vim.api.nvim_set_keymap('v', '<leader>p', '"+p', { noremap = true, silent = true }) -- Paste from system clipboard
+-- Configure 'listchars' to display spaces and tabs
+vim.opt.listchars = { space = '⋅', tab = '▸ ', eol = '↴' }
+vim.opt.list = false  -- Initially disable 'list' option
 
--- Treesitter configuration (added support for typescript and rust)
+-- Key mapping to toggle the 'list' option
+vim.api.nvim_set_keymap('n', '<leader>ts', ':set list!<CR>', { noremap = true, silent = true })
+
+-- Treesitter configuration
 require'nvim-treesitter.configs'.setup {
-  ensure_installed = { "c", "lua", "python", "javascript", "typescript", "rust" },  -- Add desired languages
+  ensure_installed = { "c", "lua", "python", "javascript", "typescript", "rust", "bash" },
   highlight = {
-    enable = true,  -- Enable syntax highlighting
+    enable = true,
     additional_vim_regex_highlighting = false,
   },
 }
 
--- Telescope configuration (for fuzzy searching)
+-- Telescope configuration
 require('telescope').setup{
   defaults = {
     vimgrep_arguments = {
@@ -113,37 +127,38 @@ vim.api.nvim_set_keymap('n', '<leader>ff', "<cmd>lua require('telescope.builtin'
 vim.api.nvim_set_keymap('n', '<leader>fg', "<cmd>lua require('telescope.builtin').live_grep()<CR>", { noremap = true, silent = true })
 
 -- LSP configuration
-local lspconfig = require'lspconfig'
+local status_ok, lspconfig = pcall(require, 'lspconfig')
+if status_ok then
+  -- Set up LSP with nvim-cmp capabilities
+  local capabilities = require('cmp_nvim_lsp').default_capabilities()
 
--- Set up LSP with nvim-cmp capabilities
-local capabilities = require('cmp_nvim_lsp').default_capabilities()
-
--- Configure LSP for Lua using lua_ls
-lspconfig.lua_ls.setup{
-  capabilities = capabilities,
-  settings = {
-    Lua = {
-      diagnostics = {
-        globals = {'vim'}  -- Get rid of "undefined global 'vim'" warnings
-      },
-      workspace = {
-        library = vim.api.nvim_get_runtime_file("", true),  -- Make the server aware of Neovim runtime files
-      },
+  -- Configure LSP for Lua using lua_ls
+  lspconfig.lua_ls.setup{
+    capabilities = capabilities,
+    settings = {
+      Lua = {
+        diagnostics = {
+          globals = {'vim'}
+        },
+        workspace = {
+          library = vim.api.nvim_get_runtime_file("", true),
+        },
+      }
     }
   }
-}
 
--- LSP Configuration for TypeScript/JavaScript (using tsserver)
-lspconfig.ts_ls.setup{
-  capabilities = capabilities,
-}
+  -- LSP Configuration for TypeScript/JavaScript using ts_ls
+  lspconfig.ts_ls.setup{
+    capabilities = capabilities,
+  }
 
--- LSP Configuration for Rust (using rust-analyzer)
-lspconfig.rust_analyzer.setup{
-  capabilities = capabilities,
-}
+  -- LSP Configuration for Rust
+  lspconfig.rust_analyzer.setup{
+    capabilities = capabilities,
+  }
+end
 
--- Nvim-tree setup for file explorer
+-- Nvim-tree setup
 require'nvim-tree'.setup {}
 
 -- Keybinding for opening/closing the file explorer with Ctrl + n
@@ -154,7 +169,7 @@ vim.cmd([[
   autocmd VimEnter * if isdirectory(expand('%')) | NvimTreeOpen | endif
 ]])
 
--- Optional: lualine configuration for status line
+-- Lualine configuration
 require('lualine').setup {
   options = {
     theme = 'tokyonight',
@@ -162,27 +177,119 @@ require('lualine').setup {
   }
 }
 
--- Set up nvim-cmp.
-local cmp = require'cmp'
+-- Set up nvim-cmp
+local cmp_status_ok, cmp = pcall(require, 'cmp')
+if cmp_status_ok then
+  cmp.setup({
+    snippet = {
+      expand = function(args)
+        require'luasnip'.lsp_expand(args.body)
+      end,
+    },
+    mapping = {
+      ['<C-p>'] = cmp.mapping.select_prev_item(), -- Previous suggestion
+      ['<C-n>'] = cmp.mapping.select_next_item(), -- Next suggestion
+      ['<C-d>'] = cmp.mapping.scroll_docs(-4),    -- Scroll docs up
+      ['<C-f>'] = cmp.mapping.scroll_docs(4),     -- Scroll docs down
+      ['<C-Space>'] = cmp.mapping.complete(),     -- Trigger completion
+      ['<C-e>'] = cmp.mapping.close(),            -- Close completion window
+      ['<CR>'] = cmp.mapping.confirm({ select = true }), -- Confirm selection
+    },
+    sources = {
+      { name = 'nvim_lsp' },
+      { name = 'luasnip' },
+    },
+  })
+end
 
-cmp.setup({
-  snippet = {
-    expand = function(args)
-      require'luasnip'.lsp_expand(args.body) -- For `LuaSnip` users.
-    end,
-  },
-  mapping = {
-    ['<C-p>'] = cmp.mapping.select_prev_item(), -- Previous suggestion
-    ['<C-n>'] = cmp.mapping.select_next_item(), -- Next suggestion
-    ['<C-d>'] = cmp.mapping.scroll_docs(-4),    -- Scroll docs up
-    ['<C-f>'] = cmp.mapping.scroll_docs(4),     -- Scroll docs down
-    ['<C-Space>'] = cmp.mapping.complete(),     -- Trigger completion
-    ['<C-e>'] = cmp.mapping.close(),            -- Close completion window
-    ['<CR>'] = cmp.mapping.confirm({ select = true }), -- Confirm selection
-  },
-  sources = {
-    { name = 'nvim_lsp' },
-    { name = 'luasnip' },
-  },
-})
 
+
+-- Key Mappings and Functions Summary
+
+-- Leader Key: ',' (comma)
+
+-- Copy and Paste using System Clipboard
+-- Visual Mode: ',c' to copy selection to clipboard
+-- Normal Mode: ',c' to copy current line to clipboard
+-- Normal Mode: ',v' to paste from clipboard after cursor
+-- Visual Mode: ',v' to replace selection with clipboard content
+
+-- Toggle Relative Line Numbers
+-- Normal Mode: ',ln' toggles relative line numbers on/off
+
+-- Toggle Display of Spaces and Tabs
+-- Normal Mode: ',ts' toggles visibility of whitespace characters
+
+-- Open/Close Nvim-Tree File Explorer
+-- Normal Mode: Ctrl + n to toggle file explorer
+
+-- Telescope Fuzzy Finder
+-- Normal Mode: ',ff' to find files
+-- Normal Mode: ',fg' to live grep/search within files
+
+-- Autocompletion Shortcuts (nvim-cmp)
+-- Insert Mode:
+--   Ctrl + p     : Previous suggestion
+--   Ctrl + n     : Next suggestion
+--   Ctrl + d     : Scroll documentation up
+--   Ctrl + f     : Scroll documentation down
+--   Ctrl + Space : Trigger autocomplete
+--   Ctrl + e     : Close autocomplete menu
+--   Enter        : Confirm selection
+
+-- Additional Features:
+
+-- Line Numbering:
+--   - Absolute and relative line numbers enabled by default
+--   - Toggle with ',ln'
+
+-- Display of Spaces and Tabs:
+--   - Spaces shown as '⋅', tabs as '▸ ', end-of-line as '↴'
+--   - Toggle visibility with ',ts'
+
+-- System Clipboard Integration:
+--   - Uses 'unnamedplus' clipboard setting for seamless copy/paste
+
+-- Colorscheme:
+--   - 'tokyonight' colorscheme applied
+
+-- GUI Font Configuration:
+--   - Font set to 'FiraCode Nerd Font:h17' (for GUI versions of Neovim)
+
+-- Treesitter Configuration:
+--   - Enhanced syntax highlighting for languages: c, lua, python, javascript, typescript, rust, bash
+
+-- Telescope Configuration:
+--   - Powerful fuzzy finder for files and text within project
+
+-- LSP Configurations:
+--   - Lua: 'lua_ls' for Lua language support
+--   - TypeScript/JavaScript: 'tsserver' for TypeScript and JavaScript
+--   - Rust: 'rust_analyzer' for Rust language support
+
+-- Nvim-Tree File Explorer:
+--   - File explorer with file icons
+--   - Toggle with 'Ctrl + n'
+--   - Auto-opens when Neovim is started with a directory
+
+-- Lualine Status Line:
+--   - Customized status line with 'tokyonight' theme
+
+-- Autocompletion with nvim-cmp:
+--   - Integrated autocompletion with LSP and LuaSnip snippets
+--   - Use the key mappings listed above for navigation and selection
+
+-- Plugins Used:
+
+-- 'wbthomason/packer.nvim'              -- Plugin manager
+-- 'folke/tokyonight.nvim'               -- Colorscheme
+-- 'nvim-treesitter/nvim-treesitter'     -- Treesitter for syntax highlighting
+-- 'nvim-telescope/telescope.nvim'       -- Fuzzy finder
+-- 'neovim/nvim-lspconfig'               -- LSP configurations
+-- 'kyazdani42/nvim-tree.lua'            -- File explorer
+-- 'kyazdani42/nvim-web-devicons'        -- File icons
+-- 'nvim-lualine/lualine.nvim'           -- Status line
+-- 'hrsh7th/nvim-cmp'                    -- Autocompletion plugin
+-- 'hrsh7th/cmp-nvim-lsp'                -- LSP source for nvim-cmp
+-- 'L3MON4D3/LuaSnip'                    -- Snippet engine
+-- 'saadparwaiz1/cmp_luasnip'            -- Snippet source for nvim-cmp
