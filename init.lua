@@ -36,6 +36,9 @@ require('packer').startup(function(use)
     requires = { {'nvim-lua/plenary.nvim'} }
   }
 
+  use { 'nvim-telescope/telescope-fzf-native.nvim', run = 'make' }
+ 
+
   -- LSP configurations
   use 'neovim/nvim-lspconfig'
 
@@ -102,23 +105,40 @@ require('telescope').setup{
       '--with-filename',
       '--line-number',
       '--column',
-      '--smart-case'
+      '--smart-case',
+      '--word-regexp'
     },
     prompt_prefix = "> ",
     selection_caret = "> ",
     path_display = {"smart"},
+    extensions = {
+        fzf = {
+            fuzzy = false, -- only show direct matches in search
+            override_generic_sorter = true,
+            override_file_sorter = true,
+            case_mode = "smart_case",
+        }
+    }
   }
 }
+
+require('telescope').load_extension('fzf')
 
 -- General Neovim settings
 vim.o.number = true              -- Enable line numbers
 vim.o.relativenumber = true      -- Enable relative line numbers
 vim.o.clipboard = 'unnamedplus'  -- Use system clipboard
 
+vim.opt.tabstop = 4 -- number of spaces a tab char represents
+vim.opt.softtabstop = 4 -- number of spaces to insert with the tab key in insert mode
+vim.opt.shiftwidth = 4 -- Number of spaces for each indentation level
+vim.opt.expandtab = true -- convert tabs to spaces
+
+
 -- Keybindings
 
 -- Set the leader key to comma (',')
-vim.g.mapleader = ' '
+vim.g.mapleader = ','
 
 -- General
 local opts = { noremap = true, silent = true}
@@ -140,11 +160,12 @@ vim.api.nvim_set_keymap('n', '<leader>ts', ':set list!<CR>', { noremap = true, s
 -- Telescope keybindings
 vim.api.nvim_set_keymap('n', '<leader>ff', "<cmd>lua require('telescope.builtin').find_files()<CR>", opts)
 vim.api.nvim_set_keymap('n', '<leader>fg', "<cmd>lua require('telescope.builtin').live_grep()<CR>", opts)
+vim.api.nvim_set_keymap('n', '<leader>fs', "<cmd>lua require('telescope.builtin').current_buffer_fuzzy_find()<CR>", opts)
 
 -- Vimtex keybindings
 vim.api.nvim_set_keymap('n', '<leader>lc', '<cmd>VimtexCompile<CR>', opts) -- compile Document
 vim.api.nvim_set_keymap('n', '<leader>lv', '<cmd>VimtexView<CR>', opts) -- View PDF
-vim.api.nvim_set_keymap('n', '<leader>lq', '<cmd>VimtexCompilerStop<CR>', opts) -- stop compilation
+vim.api.nvim_set_keymap('n', '<leader>lq', '<cmd>VimtexCompileStop<CR>', opts) -- stop compilation
 vim.api.nvim_set_keymap('n', '<leader>le', '<cmd>VimtexErrors<CR>', opts) -- show errors
 
 
@@ -218,12 +239,17 @@ if cmp_status_ok then
     mapping = {
         ['<CR>'] = cmp.mapping(function(fallback)
             if cmp.visible() then
-                cmp.confirm({ select = false }) -- Only confirm explicitly selected item
+            local selected = cmp.get_selected_entry()
+            if selected then
+            cmp.confirm({ select = false }) -- Only confirm explicitly selected item, without auto choosing first entry (no auto select)
+            else
+                fallback()
+            end
             else
                 fallback() -- Use Enter for newline if no item is selected
             end
         end, { 'i', 's' }),
-        ['<C-n>'] = cmp.mapping.select_next_item({ behavior = cmp.SelectBehavior.Insert }), -- Navigate down
+        ['<Tab>'] = cmp.mapping.select_next_item({ behavior = cmp.SelectBehavior.Insert }), -- Navigate down
         ['<C-p>'] = cmp.mapping.select_prev_item({ behavior = cmp.SelectBehavior.Insert }), -- Navigate up
         ['<C-e>'] = cmp.mapping.abort(), -- Abort completion
     },
@@ -233,8 +259,6 @@ if cmp_status_ok then
     },
   })
 end
-
-
 
 -- Key Mappings and Functions Summary
 
