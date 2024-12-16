@@ -27,9 +27,12 @@ require('packer').startup(function(use)
     run = ':TSUpdate'
   }
 
+  -- Vimtex for Latex editing
+  use 'lervag/vimtex'
+
   -- Telescope for fuzzy searching
   use {
-    'nvim-telescope/telescope.nvim', tag = '0.1.0',
+    'nvim-telescope/telescope.nvim', tag = '0.1.8',
     requires = { {'nvim-lua/plenary.nvim'} }
   }
 
@@ -61,23 +64,10 @@ require('packer').startup(function(use)
   end
 end)
 
--- General Neovim settings
-vim.o.number = true              -- Enable line numbers
-vim.o.relativenumber = true      -- Enable relative line numbers
-vim.o.clipboard = 'unnamedplus'  -- Use system clipboard
+-- Vimtex settings
+vim.g.vimtex_view_method = 'zathura'
+vim.g.vimtex_compiler_method = 'latexmk'
 
--- Set the leader key to comma (',')
-vim.g.mapleader = ','
-
--- Key mappings for copy and paste (uses system clipboard)
--- Copy in visual mode
-vim.api.nvim_set_keymap('v', '<leader>c', '"+y', { noremap = true, silent = true })
--- Copy current line in normal mode
-vim.api.nvim_set_keymap('n', '<leader>c', '"+yy', { noremap = true, silent = true })
--- Paste in normal mode
-vim.api.nvim_set_keymap('n', '<leader>v', '"+p', { noremap = true, silent = true })
--- Paste in visual mode
-vim.api.nvim_set_keymap('v', '<leader>v', '"+p', { noremap = true, silent = true })
 
 -- Set the colorscheme to tokyonight
 vim.cmd[[colorscheme tokyonight]]
@@ -92,12 +82,10 @@ vim.api.nvim_set_keymap('n', '<leader>ln', ':set relativenumber!<CR>', { noremap
 vim.opt.listchars = { space = '⋅', tab = '▸ ', eol = '↴' }
 vim.opt.list = false  -- Initially disable 'list' option
 
--- Key mapping to toggle the 'list' option
-vim.api.nvim_set_keymap('n', '<leader>ts', ':set list!<CR>', { noremap = true, silent = true })
 
 -- Treesitter configuration
 require'nvim-treesitter.configs'.setup {
-  ensure_installed = { "c", "lua", "python", "javascript", "typescript", "rust", "bash" },
+  ensure_installed = { "c", "lua", "python", "javascript", "typescript", "rust", "bash", "latex" },
   highlight = {
     enable = true,
     additional_vim_regex_highlighting = false,
@@ -122,9 +110,47 @@ require('telescope').setup{
   }
 }
 
+-- General Neovim settings
+vim.o.number = true              -- Enable line numbers
+vim.o.relativenumber = true      -- Enable relative line numbers
+vim.o.clipboard = 'unnamedplus'  -- Use system clipboard
+
+-- Keybindings
+
+-- Set the leader key to comma (',')
+vim.g.mapleader = ' '
+
+-- General
+local opts = { noremap = true, silent = true}
+
+-- Key mappings for copy and paste (uses system clipboard)
+-- Copy in visual mode
+vim.api.nvim_set_keymap('v', '<leader>c', '"+y', opts)
+-- Copy current line in normal mode
+vim.api.nvim_set_keymap('n', '<leader>c', '"+yy', opts)
+-- Paste in normal mode
+vim.api.nvim_set_keymap('n', '<leader>v', '"+p', opts )
+-- Paste in visual mode
+vim.api.nvim_set_keymap('v', '<leader>v', '"+p', opts)
+
+
+-- Key mapping to toggle the 'list' option
+vim.api.nvim_set_keymap('n', '<leader>ts', ':set list!<CR>', { noremap = true, silent = true })
+
 -- Telescope keybindings
-vim.api.nvim_set_keymap('n', '<leader>ff', "<cmd>lua require('telescope.builtin').find_files()<CR>", { noremap = true, silent = true })
-vim.api.nvim_set_keymap('n', '<leader>fg', "<cmd>lua require('telescope.builtin').live_grep()<CR>", { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<leader>ff', "<cmd>lua require('telescope.builtin').find_files()<CR>", opts)
+vim.api.nvim_set_keymap('n', '<leader>fg', "<cmd>lua require('telescope.builtin').live_grep()<CR>", opts)
+
+-- Vimtex keybindings
+vim.api.nvim_set_keymap('n', '<leader>lc', '<cmd>VimtexCompile<CR>', opts) -- compile Document
+vim.api.nvim_set_keymap('n', '<leader>lv', '<cmd>VimtexView<CR>', opts) -- View PDF
+vim.api.nvim_set_keymap('n', '<leader>lq', '<cmd>VimtexCompilerStop<CR>', opts) -- stop compilation
+vim.api.nvim_set_keymap('n', '<leader>le', '<cmd>VimtexErrors<CR>', opts) -- show errors
+
+
+-- Keybinding for opening/closing the file explorer with Ctrl + n
+vim.api.nvim_set_keymap('n', '<C-n>', ':NvimTreeToggle<CR>', opts )
+
 
 -- LSP configuration
 local status_ok, lspconfig = pcall(require, 'lspconfig')
@@ -156,13 +182,16 @@ if status_ok then
   lspconfig.rust_analyzer.setup{
     capabilities = capabilities,
   }
+
+  -- Configuration for latex
+  lspconfig.texlab.setup{
+	  capabilities = capabilities
+  }
 end
 
 -- Nvim-tree setup
 require'nvim-tree'.setup {}
 
--- Keybinding for opening/closing the file explorer with Ctrl + n
-vim.api.nvim_set_keymap('n', '<C-n>', ':NvimTreeToggle<CR>', { noremap = true, silent = true })
 
 -- Auto open nvim-tree when opening nvim with a directory
 vim.cmd([[
@@ -187,13 +216,16 @@ if cmp_status_ok then
       end,
     },
     mapping = {
-      ['<C-p>'] = cmp.mapping.select_prev_item(), -- Previous suggestion
-      ['<C-n>'] = cmp.mapping.select_next_item(), -- Next suggestion
-      ['<C-d>'] = cmp.mapping.scroll_docs(-4),    -- Scroll docs up
-      ['<C-f>'] = cmp.mapping.scroll_docs(4),     -- Scroll docs down
-      ['<C-Space>'] = cmp.mapping.complete(),     -- Trigger completion
-      ['<C-e>'] = cmp.mapping.close(),            -- Close completion window
-      ['<CR>'] = cmp.mapping.confirm({ select = true }), -- Confirm selection
+        ['<CR>'] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+                cmp.confirm({ select = false }) -- Only confirm explicitly selected item
+            else
+                fallback() -- Use Enter for newline if no item is selected
+            end
+        end, { 'i', 's' }),
+        ['<C-n>'] = cmp.mapping.select_next_item({ behavior = cmp.SelectBehavior.Insert }), -- Navigate down
+        ['<C-p>'] = cmp.mapping.select_prev_item({ behavior = cmp.SelectBehavior.Insert }), -- Navigate up
+        ['<C-e>'] = cmp.mapping.abort(), -- Abort completion
     },
     sources = {
       { name = 'nvim_lsp' },
