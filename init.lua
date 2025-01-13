@@ -37,7 +37,6 @@ require('packer').startup(function(use)
   }
 
   use { 'nvim-telescope/telescope-fzf-native.nvim', run = 'make' }
- 
 
   -- LSP configurations
   use 'neovim/nvim-lspconfig'
@@ -49,6 +48,14 @@ require('packer').startup(function(use)
       'kyazdani42/nvim-web-devicons', -- optional, for file icons
     }
   }
+
+  -- Soft wrapping
+  use({
+    "andrewferrier/wrapping.nvim",
+    config = function()
+        require("wrapping").setup()
+    end,
+  })
 
   -- Optional: Status line customization
   use {
@@ -88,12 +95,13 @@ vim.opt.list = false  -- Initially disable 'list' option
 
 -- Treesitter configuration
 require'nvim-treesitter.configs'.setup {
-  ensure_installed = { "c", "lua", "python", "javascript", "typescript", "rust", "bash", "latex" },
+  ensure_installed = { "c", "lua", "python", "svelte", "javascript", "typescript", "rust", "bash", "latex" },
   highlight = {
     enable = true,
     additional_vim_regex_highlighting = false,
   },
 }
+
 
 -- Telescope configuration
 require('telescope').setup{
@@ -134,6 +142,7 @@ vim.opt.softtabstop = 4 -- number of spaces to insert with the tab key in insert
 vim.opt.shiftwidth = 4 -- Number of spaces for each indentation level
 vim.opt.expandtab = true -- convert tabs to spaces
 
+vim.o.virtualedit = "onemore"
 
 -- Keybindings
 
@@ -168,6 +177,8 @@ vim.api.nvim_set_keymap('n', '<leader>lv', '<cmd>VimtexView<CR>', opts) -- View 
 vim.api.nvim_set_keymap('n', '<leader>lq', '<cmd>VimtexCompileStop<CR>', opts) -- stop compilation
 vim.api.nvim_set_keymap('n', '<leader>le', '<cmd>VimtexErrors<CR>', opts) -- show errors
 
+-- Spellcheck
+vim.api.nvim_set_keymap('n', '<leader>sc', '<cmd>setlocal spell spelllang=de_20<CR>', opts) -- show errors
 
 -- Keybinding for opening/closing the file explorer with Ctrl + n
 vim.api.nvim_set_keymap('n', '<C-n>', ':NvimTreeToggle<CR>', opts )
@@ -208,6 +219,12 @@ if status_ok then
   lspconfig.texlab.setup{
 	  capabilities = capabilities
   }
+
+  -- LSP Configuration for svelte
+  lspconfig.svelte.setup{
+      capabilities = capabilities,
+  }
+
 end
 
 -- Nvim-tree setup
