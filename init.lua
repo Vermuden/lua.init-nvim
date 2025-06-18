@@ -50,12 +50,12 @@ require('packer').startup(function(use)
   }
 
   -- Soft wrapping
-  use({
-    "andrewferrier/wrapping.nvim",
-    config = function()
-        require("wrapping").setup()
-    end,
-  })
+ -- use({
+   -- "andrewferrier/wrapping.nvim",
+   -- config = function()
+   --     require("wrapping").setup({ create_commands = true, create_keymaps = false })
+   -- end,
+  -- })
 
   -- Optional: Status line customization
   use {
@@ -83,7 +83,7 @@ vim.g.vimtex_compiler_method = 'latexmk'
 vim.cmd[[colorscheme tokyonight]]
 
 -- Set the GUI font (only works in GUI versions)
-vim.o.guifont = 'FiraCode Nerd Font:h17'  -- Replace with your desired font and size
+vim.o.guifont = 'FiraCode Nerd Font:h19'  -- Replace with your desired font and size
 
 -- Function to toggle between relative and absolute line numbers
 vim.api.nvim_set_keymap('n', '<leader>ln', ':set relativenumber!<CR>', { noremap = true, silent = true })
@@ -133,6 +133,8 @@ require('telescope').setup{
 require('telescope').load_extension('fzf')
 
 -- General Neovim settings
+
+
 vim.o.number = true              -- Enable line numbers
 vim.o.relativenumber = true      -- Enable relative line numbers
 vim.o.clipboard = 'unnamedplus'  -- Use system clipboard
@@ -164,7 +166,7 @@ vim.api.nvim_set_keymap('v', '<leader>v', '"+p', opts)
 
 
 -- Key mapping to toggle the 'list' option
-vim.api.nvim_set_keymap('n', '<leader>ts', ':set list!<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<leader>ts', ':set list!<CR>', opts)
 
 -- Telescope keybindings
 vim.api.nvim_set_keymap('n', '<leader>ff', "<cmd>lua require('telescope.builtin').find_files()<CR>", opts)
@@ -179,6 +181,9 @@ vim.api.nvim_set_keymap('n', '<leader>le', '<cmd>VimtexErrors<CR>', opts) -- sho
 
 -- Spellcheck
 vim.api.nvim_set_keymap('n', '<leader>sc', '<cmd>setlocal spell spelllang=de_20<CR>', opts) -- show errors
+
+-- Line Wrapping
+-- vim.api.nvim_set_keymap('n', '<leader>sw', "<cmd>lua require('wrapping').soft_wrap_mode()<CR>", opts)
 
 -- Keybinding for opening/closing the file explorer with Ctrl + n
 vim.api.nvim_set_keymap('n', '<C-n>', ':NvimTreeToggle<CR>', opts )
