@@ -371,3 +371,8 @@ end
 -- 'hrsh7th/cmp-nvim-lsp'                -- LSP source for nvim-cmp
 -- 'L3MON4D3/LuaSnip'                    -- Snippet engine
 -- 'saadparwaiz1/cmp_luasnip'            -- Snippet source for nvim-cmp
+--
+--
+-- Installation Notes
+--   - needs Tex Live
+--   - Clipboard on Manjaro Gnome: sudo pacman -S wl-clipboard
