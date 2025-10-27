@@ -28,7 +28,11 @@ require('packer').startup(function(use)
   }
 
   -- Vimtex for Latex editing
-  use 'lervag/vimtex'
+
+use {
+  'lervag/vimtex',
+  ft = { 'tex' }
+}
 
   -- Telescope for fuzzy searching
   use {
@@ -356,6 +360,12 @@ end
 -- Autocompletion with nvim-cmp:
 --   - Integrated autocompletion with LSP and LuaSnip snippets
 --   - Use the key mappings listed above for navigation and selection
+
+
+-- manual installation
+-- sudo dnf install latexmk
+-- sudo dnf install texlive-scheme-full
+
 
 -- Plugins Used:
 
