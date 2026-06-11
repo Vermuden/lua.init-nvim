@@ -10,7 +10,7 @@ if not vim.loop.fs_stat(lazypath) then
 end
 vim.opt.rtp:prepend(lazypath)
 
--- Set leader before lazy so mappings are correct
+-- Set leader before lazy so all mappings pick it up
 vim.g.mapleader = ','
 
 require('lazy').setup({
@@ -23,8 +23,11 @@ require('lazy').setup({
     'nvim-treesitter/nvim-treesitter',
     build = ':TSUpdate',
     config = function()
-      require('nvim-treesitter.configs').setup {
-        ensure_installed = { "c", "lua", "python", "svelte", "javascript", "typescript", "rust", "bash", "latex" },
+      local ok, configs = pcall(require, 'nvim-treesitter.configs')
+      if not ok then return end
+      configs.setup {
+        ensure_installed = { "c", "lua", "python", "svelte", "javascript",
+                             "typescript", "rust", "bash", "latex" },
         highlight = {
           enable = true,
           additional_vim_regex_highlighting = false,
@@ -33,8 +36,11 @@ require('lazy').setup({
     end,
   },
 
-  -- Vimtex
-  'lervag/vimtex',
+  -- Vimtex (only loads for .tex files)
+  {
+    'lervag/vimtex',
+    ft = { 'tex' },
+  },
 
   -- Telescope
   {
@@ -49,18 +55,18 @@ require('lazy').setup({
         defaults = {
           vimgrep_arguments = {
             'rg', '--color=never', '--no-heading', '--with-filename',
-            '--line-number', '--column', '--smart-case', '--word-regexp'
+            '--line-number', '--column', '--smart-case', '--word-regexp',
           },
-          prompt_prefix = '> ',
+          prompt_prefix   = '> ',
           selection_caret = '> ',
-          path_display = { 'smart' },
+          path_display    = { 'smart' },
         },
         extensions = {
           fzf = {
-            fuzzy = false,
+            fuzzy                   = false,
             override_generic_sorter = true,
-            override_file_sorter = true,
-            case_mode = 'smart_case',
+            override_file_sorter    = true,
+            case_mode               = 'smart_case',
           },
         },
       }
@@ -68,56 +74,34 @@ require('lazy').setup({
     end,
   },
 
-  -- LSP
+  -- Mason: installs LSP servers inside Neovim
+  -- Run :MasonInstall lua-language-server typescript-language-server
+  --   rust-analyzer texlab svelte-language-server
   {
-    'neovim/nvim-lspconfig',
-    dependencies = {
-      -- Mason: installs LSP servers inside Neovim (no system packages needed)
-      { 'mason-org/mason.nvim', opts = {} },
-      'mason-org/mason-lspconfig.nvim',
-      'hrsh7th/cmp-nvim-lsp',
-    },
-    config = function()
-      local capabilities = require('cmp_nvim_lsp').default_capabilities()
-      local lspconfig = require('lspconfig')
+    'mason-org/mason.nvim',
+    opts = {},
+  },
 
-      -- mason-lspconfig bridges Mason installs → lspconfig
-      -- Run :MasonInstall lua-language-server ts_ls rust_analyzer texlab svelte-language-server
-      -- to install all servers, or use :Mason UI to browse and install.
-      require('mason-lspconfig').setup {
-        -- Automatically set up any server installed via Mason
-        handlers = {
-          -- Default handler for all servers
-          function(server_name)
-            lspconfig[server_name].setup { capabilities = capabilities }
-          end,
-          -- Custom handler for lua_ls (needs vim globals)
-          lua_ls = function()
-            lspconfig.lua_ls.setup {
-              capabilities = capabilities,
-              settings = {
-                Lua = {
-                  diagnostics = { globals = { 'vim' } },
-                  workspace = {
-                    library = vim.api.nvim_get_runtime_file('', true),
-                    checkThirdParty = false,
-                  },
-                },
-              },
-            }
-          end,
-        },
-      }
+  -- LSP
+  'neovim/nvim-lspconfig',
+
+  -- Markdown → PDF (uses pandoc + zathura)
+  {
+    'arminveres/md-pdf.nvim',
+    ft = { 'markdown' },
+    config = function()
+      require('md-pdf').setup({
+        preview_cmd = function() return 'zathura' end,
+      })
     end,
   },
 
-  -- File explorer (updated org: nvim-tree/nvim-tree.lua)
+  -- File explorer (updated org)
   {
     'nvim-tree/nvim-tree.lua',
     dependencies = { 'nvim-tree/nvim-web-devicons' },
     config = function()
-      -- Disable netrw (recommended by nvim-tree)
-      vim.g.loaded_netrw = 1
+      vim.g.loaded_netrw       = 1
       vim.g.loaded_netrwPlugin = 1
       require('nvim-tree').setup {}
     end,
@@ -129,7 +113,7 @@ require('lazy').setup({
     dependencies = { 'nvim-tree/nvim-web-devicons' },
     opts = {
       options = {
-        theme = 'tokyonight',
+        theme         = 'tokyonight',
         icons_enabled = true,
       },
     },
@@ -164,9 +148,9 @@ require('lazy').setup({
               fallback()
             end
           end, { 'i', 's' }),
-          ['<Tab>']  = cmp.mapping.select_next_item({ behavior = cmp.SelectBehavior.Insert }),
-          ['<C-p>']  = cmp.mapping.select_prev_item({ behavior = cmp.SelectBehavior.Insert }),
-          ['<C-e>']  = cmp.mapping.abort(),
+          ['<Tab>'] = cmp.mapping.select_next_item({ behavior = cmp.SelectBehavior.Insert }),
+          ['<C-p>'] = cmp.mapping.select_prev_item({ behavior = cmp.SelectBehavior.Insert }),
+          ['<C-e>'] = cmp.mapping.abort(),
         },
         sources = {
           { name = 'nvim_lsp' },
@@ -177,33 +161,78 @@ require('lazy').setup({
   },
 
 }, {
-  -- lazy.nvim options
-  checker = { enabled = false }, -- set to true to auto-check for plugin updates
+  checker = { enabled = false },
 })
 
 -- ─── Colorscheme ──────────────────────────────────────────────────────────────
 vim.cmd [[colorscheme tokyonight]]
 
 -- ─── Vimtex ───────────────────────────────────────────────────────────────────
-vim.g.vimtex_view_method   = 'zathura'
+vim.g.vimtex_view_method    = 'zathura'
 vim.g.vimtex_compiler_method = 'latexmk'
 
 -- ─── General settings ─────────────────────────────────────────────────────────
-vim.o.guifont       = 'FiraCode Nerd Font:h19'
-vim.o.number        = true
+vim.o.guifont        = 'FiraCode Nerd Font:h19'
+vim.o.number         = true
 vim.o.relativenumber = true
-vim.o.clipboard     = 'unnamedplus'
-vim.o.virtualedit   = 'onemore'
+vim.o.clipboard      = 'unnamedplus'
+vim.o.virtualedit    = 'onemore'
 
 vim.opt.tabstop     = 4
 vim.opt.softtabstop = 4
 vim.opt.shiftwidth  = 4
 vim.opt.expandtab   = true
 
-vim.opt.listchars   = { space = '⋅', tab = '▸ ', eol = '↴' }
-vim.opt.list        = false
+vim.opt.listchars = { space = '⋅', tab = '▸ ', eol = '↴' }
+vim.opt.list      = false
 
--- ─── Auto-open nvim-tree when opening a directory ─────────────────────────────
+-- ─── LSP (Neovim 0.11+ native API) ───────────────────────────────────────────
+-- cmp capabilities shared across all servers
+local capabilities = require('cmp_nvim_lsp').default_capabilities()
+
+vim.lsp.config('lua_ls', {
+  capabilities = capabilities,
+  settings = {
+    Lua = {
+      diagnostics = { globals = { 'vim' } },
+      workspace = {
+        library       = vim.api.nvim_get_runtime_file('', true),
+        checkThirdParty = false,
+      },
+    },
+  },
+})
+
+vim.lsp.config('ts_ls', {
+  capabilities = capabilities,
+})
+
+vim.lsp.config('rust_analyzer', {
+  capabilities = capabilities,
+})
+
+vim.lsp.config('texlab', {
+  capabilities = capabilities,
+})
+
+vim.lsp.config('svelte', {
+  capabilities = capabilities,
+})
+
+vim.lsp.enable({ 'lua_ls', 'ts_ls', 'rust_analyzer', 'texlab', 'svelte' })
+
+-- LSP keymaps (set on attach so they only apply in LSP buffers)
+vim.api.nvim_create_autocmd('LspAttach', {
+  callback = function(event)
+    local o = { buffer = event.buf }
+    vim.keymap.set('n', 'K',          vim.lsp.buf.hover,      o)
+    vim.keymap.set('n', 'gd',         vim.lsp.buf.definition, o)
+    vim.keymap.set('n', 'gr',         vim.lsp.buf.references, o)
+    vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename,     o)
+  end,
+})
+
+-- ─── Auto-open nvim-tree for directories ──────────────────────────────────────
 vim.cmd [[
   autocmd VimEnter * if isdirectory(expand('%')) | NvimTreeOpen | endif
 ]]
@@ -217,18 +246,16 @@ vim.api.nvim_set_keymap('n', '<leader>c', '"+yy', opts)
 vim.api.nvim_set_keymap('n', '<leader>v', '"+p',  opts)
 vim.api.nvim_set_keymap('v', '<leader>v', '"+p',  opts)
 
--- Toggle listchars
-vim.api.nvim_set_keymap('n', '<leader>ts', ':set list!<CR>', opts)
-
--- Toggle relative line numbers
+-- Toggle listchars / relative numbers
+vim.api.nvim_set_keymap('n', '<leader>ts', ':set list!<CR>',         opts)
 vim.api.nvim_set_keymap('n', '<leader>ln', ':set relativenumber!<CR>', opts)
 
 -- File explorer
 vim.api.nvim_set_keymap('n', '<C-n>', ':NvimTreeToggle<CR>', opts)
 
 -- Telescope
-vim.api.nvim_set_keymap('n', '<leader>ff', "<cmd>lua require('telescope.builtin').find_files()<CR>",              opts)
-vim.api.nvim_set_keymap('n', '<leader>fg', "<cmd>lua require('telescope.builtin').live_grep()<CR>",               opts)
+vim.api.nvim_set_keymap('n', '<leader>ff', "<cmd>lua require('telescope.builtin').find_files()<CR>",               opts)
+vim.api.nvim_set_keymap('n', '<leader>fg', "<cmd>lua require('telescope.builtin').live_grep()<CR>",                opts)
 vim.api.nvim_set_keymap('n', '<leader>fs', "<cmd>lua require('telescope.builtin').current_buffer_fuzzy_find()<CR>", opts)
 
 -- Vimtex
@@ -237,5 +264,12 @@ vim.api.nvim_set_keymap('n', '<leader>lv', '<cmd>VimtexView<CR>',        opts)
 vim.api.nvim_set_keymap('n', '<leader>lq', '<cmd>VimtexCompileStop<CR>', opts)
 vim.api.nvim_set_keymap('n', '<leader>le', '<cmd>VimtexErrors<CR>',      opts)
 
+-- Markdown → PDF
+vim.api.nvim_set_keymap('n', '<leader>mc', "<cmd>lua require('md-pdf').convert_md_to_pdf()<CR>", opts)
+
 -- Spellcheck
 vim.api.nvim_set_keymap('n', '<leader>sc', '<cmd>setlocal spell spelllang=de_20<CR>', opts)
+
+-- ─── Installation notes ───────────────────────────────────────────────────────
+-- System deps:  sudo dnf install pandoc latexmk texlive-scheme-full zathura zathura-pdf-mupdf wl-clipboard
+-- LSP servers:  :MasonInstall lua-language-server typescript-language-server rust-analyzer texlab svelte-language-server
