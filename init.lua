@@ -18,60 +18,72 @@ require('lazy').setup({
   -- Colorscheme
   'folke/tokyonight.nvim',
 
-  -- Treesitter
-  {
-    'nvim-treesitter/nvim-treesitter',
-    build = ':TSUpdate',
-    config = function()
-      local ok, configs = pcall(require, 'nvim-treesitter.configs')
-      if not ok then return end
-      configs.setup {
-        ensure_installed = { "c", "lua", "python", "svelte", "javascript",
-                             "typescript", "rust", "bash", "latex" },
-        highlight = {
-          enable = true,
-          additional_vim_regex_highlighting = false,
-        },
-      }
-    end,
-  },
+-- Treesitter 
+{
+  'nvim-treesitter/nvim-treesitter',
+  branch = 'main',
+  build = ':TSUpdate',
+  init = function()
+    -- Install parsers on startup if not already present
+    local ensure_installed = { 'c', 'lua', 'python', 'svelte', 'javascript',
+                               'typescript', 'rust', 'bash', 'latex' }
+    local already = require('nvim-treesitter.config').get_installed()
+    local to_install = vim.tbl_filter(function(p)
+      return not vim.tbl_contains(already, p)
+    end, ensure_installed)
+    if #to_install > 0 then
+      require('nvim-treesitter').install(to_install)
+    end
+    -- Enable highlighting and indentation for every filetype
+    vim.api.nvim_create_autocmd('FileType', {
+      callback = function()
+        pcall(vim.treesitter.start)
+        vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+      end,
+    })
+  end,
+},
 
-  -- Vimtex (only loads for .tex files)
+-- Telescope
+{
+  'nvim-telescope/telescope.nvim',
+  branch = 'master',
+  dependencies = {
+    'nvim-lua/plenary.nvim',
+    { 'nvim-telescope/telescope-fzf-native.nvim', build = 'make' },
+  },
+  config = function()
+    require('telescope').setup {
+      defaults = {
+        preview = {
+          treesitter = false,  -- fixes ft_to_lang error in previewer
+        },
+        vimgrep_arguments = {
+          'rg', '--color=never', '--no-heading', '--with-filename',
+          '--line-number', '--column', '--smart-case', '--word-regexp',
+        },
+        prompt_prefix   = '> ',
+        selection_caret = '> ',
+        path_display    = { 'smart' },
+      },
+      extensions = {
+        fzf = {
+          fuzzy                   = false,
+          override_generic_sorter = true,
+          override_file_sorter    = true,
+          case_mode               = 'smart_case',
+        },
+      },
+    }
+    require('telescope').load_extension('fzf')
+  end,
+},
+
+
+-- Vimtex (only loads for .tex files)
   {
     'lervag/vimtex',
     ft = { 'tex' },
-  },
-
-  -- Telescope
-  {
-    'nvim-telescope/telescope.nvim',
-    tag = '0.1.8',
-    dependencies = {
-      'nvim-lua/plenary.nvim',
-      { 'nvim-telescope/telescope-fzf-native.nvim', build = 'make' },
-    },
-    config = function()
-      require('telescope').setup {
-        defaults = {
-          vimgrep_arguments = {
-            'rg', '--color=never', '--no-heading', '--with-filename',
-            '--line-number', '--column', '--smart-case', '--word-regexp',
-          },
-          prompt_prefix   = '> ',
-          selection_caret = '> ',
-          path_display    = { 'smart' },
-        },
-        extensions = {
-          fzf = {
-            fuzzy                   = false,
-            override_generic_sorter = true,
-            override_file_sorter    = true,
-            case_mode               = 'smart_case',
-          },
-        },
-      }
-      require('telescope').load_extension('fzf')
-    end,
   },
 
   -- Mason: installs LSP servers inside Neovim
@@ -254,10 +266,9 @@ vim.api.nvim_set_keymap('n', '<leader>ln', ':set relativenumber!<CR>', opts)
 vim.api.nvim_set_keymap('n', '<C-n>', ':NvimTreeToggle<CR>', opts)
 
 -- Telescope
-vim.api.nvim_set_keymap('n', '<leader>ff', "<cmd>lua require('telescope.builtin').find_files()<CR>",               opts)
-vim.api.nvim_set_keymap('n', '<leader>fg', "<cmd>lua require('telescope.builtin').live_grep()<CR>",                opts)
-vim.api.nvim_set_keymap('n', '<leader>fs', "<cmd>lua require('telescope.builtin').current_buffer_fuzzy_find()<CR>", opts)
-
+vim.api.nvim_set_keymap('n', '<leader>ff', "<cmd>lua require('telescope.builtin').find_files()<CR>", opts)
+vim.api.nvim_set_keymap('n', '<leader>fg', "<cmd>lua require('telescope.builtin').live_grep()<CR>", opts)
+vim.api.nvim_set_keymap('n', '<leader>fs', "<cmd>lua require('telescope.builtin').current_buffer_fuzzy_find({ results_ts_highlight = false })<CR>", opts)
 -- Vimtex
 vim.api.nvim_set_keymap('n', '<leader>lc', '<cmd>VimtexCompile<CR>',     opts)
 vim.api.nvim_set_keymap('n', '<leader>lv', '<cmd>VimtexView<CR>',        opts)
