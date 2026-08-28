@@ -26,7 +26,7 @@ require('lazy').setup({
   init = function()
     -- Install parsers on startup if not already present
     local ensure_installed = { 'c', 'lua', 'python', 'svelte', 'javascript',
-                               'typescript', 'rust', 'bash', 'latex' }
+                               'typescript', 'rust', 'bash', 'latex'}
     local already = require('nvim-treesitter.config').get_installed()
     local to_install = vim.tbl_filter(function(p)
       return not vim.tbl_contains(already, p)
@@ -87,15 +87,58 @@ require('lazy').setup({
   },
 
   -- Mason: installs LSP servers inside Neovim
-  -- Run :MasonInstall lua-language-server typescript-language-server
-  --   rust-analyzer texlab svelte-language-server
+  -- Run :MasonInstall lua-language-server typescript-language-server rust-analyzer texlab svelte-language-server python-lsp-server qmlls 
   {
     'mason-org/mason.nvim',
     opts = {},
-  },
+ },
 
-  -- LSP
+
+-- LSP
+{
   'neovim/nvim-lspconfig',
+  dependencies = {
+    'mason-org/mason.nvim',
+    'mason-org/mason-lspconfig.nvim',
+    'hrsh7th/cmp-nvim-lsp',
+  },
+  config = function()
+    require('mason').setup() 
+
+    local capabilities = require('cmp_nvim_lsp').default_capabilities()
+
+    local servers = {
+      lua_ls = {
+        settings = {
+          Lua = {
+            diagnostics = { globals = { 'vim' } },
+            workspace = {
+              library         = vim.api.nvim_get_runtime_file('', true),
+              checkThirdParty = false,
+            },
+          },
+        },
+      },
+      pylsp         = {},
+      ts_ls         = {},
+      rust_analyzer = {},
+      texlab        = {},
+      svelte        = {},
+      qmlls         = {},
+    }
+
+    require('mason-lspconfig').setup({
+      ensure_installed = vim.tbl_keys(servers),
+    })
+
+    for name, opts in pairs(servers) do
+      opts.capabilities = capabilities
+      vim.lsp.config(name, opts)
+    end
+
+    vim.lsp.enable(vim.tbl_keys(servers))
+  end,
+},
 
   -- Markdown → PDF (uses pandoc + zathura)
   {
@@ -172,8 +215,10 @@ require('lazy').setup({
     end,
   },
 
+
 }, {
   checker = { enabled = false },
+
 })
 
 -- ─── Colorscheme ──────────────────────────────────────────────────────────────
@@ -198,51 +243,6 @@ vim.opt.expandtab   = true
 vim.opt.listchars = { space = '⋅', tab = '▸ ', eol = '↴' }
 vim.opt.list      = false
 
--- ─── LSP (Neovim 0.11+ native API) ───────────────────────────────────────────
--- cmp capabilities shared across all servers
-local capabilities = require('cmp_nvim_lsp').default_capabilities()
-
-vim.lsp.config('lua_ls', {
-  capabilities = capabilities,
-  settings = {
-    Lua = {
-      diagnostics = { globals = { 'vim' } },
-      workspace = {
-        library       = vim.api.nvim_get_runtime_file('', true),
-        checkThirdParty = false,
-      },
-    },
-  },
-})
-
-vim.lsp.config('ts_ls', {
-  capabilities = capabilities,
-})
-
-vim.lsp.config('rust_analyzer', {
-  capabilities = capabilities,
-})
-
-vim.lsp.config('texlab', {
-  capabilities = capabilities,
-})
-
-vim.lsp.config('svelte', {
-  capabilities = capabilities,
-})
-
-vim.lsp.enable({ 'lua_ls', 'ts_ls', 'rust_analyzer', 'texlab', 'svelte' })
-
--- LSP keymaps (set on attach so they only apply in LSP buffers)
-vim.api.nvim_create_autocmd('LspAttach', {
-  callback = function(event)
-    local o = { buffer = event.buf }
-    vim.keymap.set('n', 'K',          vim.lsp.buf.hover,      o)
-    vim.keymap.set('n', 'gd',         vim.lsp.buf.definition, o)
-    vim.keymap.set('n', 'gr',         vim.lsp.buf.references, o)
-    vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename,     o)
-  end,
-})
 
 -- ─── Auto-open nvim-tree for directories ──────────────────────────────────────
 vim.cmd [[
@@ -251,6 +251,11 @@ vim.cmd [[
 
 -- ─── Keybindings ──────────────────────────────────────────────────────────────
 local opts = { noremap = true, silent = true }
+
+-- Scroll behavior --
+vim.keymap.set({'n','v'}, 'j', 'jzz')
+vim.keymap.set({'n','v'}, 'k', 'kzz')
+vim.opt.scrolloff = 10
 
 -- Copy / paste (system clipboard)
 vim.api.nvim_set_keymap('v', '<leader>c', '"+y',  opts)
